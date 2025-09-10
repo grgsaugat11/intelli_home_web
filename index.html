@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Smart Relay Controller</title>
+    <!-- Font Awesome for icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <!-- Import MQTT.js library to connect to MQTT broker -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <script src="app.js"></script>
+  </head>
+  <body>
+    <div class="app-container">
+      <div class="app-background"></div>
+
+      <header class="app-header">
+        <div class="header-content">
+          <!-- App title with lightning icon -->
+          <h1 class="app-title">
+            <i class="fas fa-bolt"></i> Relay Switch Controller
+          </h1>
+        </div>
+
+        <div class="header-controls">
+          <!-- Dark/light theme toggle -->
+          <div class="theme-toggle" onclick="toggleTheme()">
+            <i class="fas fa-moon"></i>
+            <i class="fas fa-sun"></i>
+            <span class="toggle-ball"></span>
+          </div>
+          <!-- MQTT connection status -->
+          <div id="status" class="connection-status">
+            <div class="status-pulse"></div>
+            <span class="status-text">Connecting...</span>
+          </div>
+          <!-- Notification Button -->
+          <section>
+            <button
+              id="notifBtn"
+              style="position: relative"
+              onclick="openNotifications()"
+            >
+              🔔
+              <span id="notifCount"></span>
+            </button>
+          </section>
+          <button id="logoutBtn" class="logout-btn">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </button>
+        </div>
+      </header>
+
+      <main class="app-content">
+        <!-- Relay controls row -->
+        <section class="relay-row">
+          <!-- Relay 1 -->
+          <div class="relay-card">
+            <div class="relay-header">
+              <h3>Light</h3>
+              <div class="relay-status" id="status-r1">
+                <span>OFF</span>
+              </div>
+            </div>
+            <label class="relay-switch">
+              <input type="checkbox" id="r1" onchange="toggleRelay(this)" />
+              <span class="slider">
+                <span class="slider-knob"></span>
+              </span>
+            </label>
+            <!-- Schedule container for Relay 1 -->
+            <div class="relay-schedules" id="schedules-r1"></div>
+          </div>
+
+          <!-- Relay 2 -->
+          <div class="relay-card">
+            <div class="relay-header">
+              <h3>Strip Light</h3>
+              <div class="relay-status" id="status-r2">
+                <span>OFF</span>
+              </div>
+            </div>
+            <label class="relay-switch">
+              <input type="checkbox" id="r2" onchange="toggleRelay(this)" />
+              <span class="slider">
+                <span class="slider-knob"></span>
+              </span>
+            </label>
+            <!-- Schedule container for Relay 2 -->
+            <div class="relay-schedules" id="schedules-r2"></div>
+          </div>
+
+          <!-- Relay 3 -->
+          <div class="relay-card">
+            <div class="relay-header">
+              <h3>Door Lock</h3>
+              <div class="relay-status" id="status-r3">
+                <span>Locked</span>
+              </div>
+            </div>
+            <label class="relay-switch">
+              <input type="checkbox" id="r3" onchange="toggleRelay(this)" />
+              <span class="slider">
+                <span class="slider-knob"></span>
+              </span>
+            </label>
+            <!-- Schedule container for Relay 3 -->
+            <div class="relay-schedules" id="schedules-r3"></div>
+          </div>
+
+          <!-- Relay 4 -->
+          <div class="relay-card">
+            <div class="relay-header">
+              <h3>Fan</h3>
+              <div class="relay-status" id="status-r4">
+                <span>OFF</span>
+              </div>
+            </div>
+            <label class="relay-switch">
+              <input type="checkbox" id="r4" onchange="toggleRelay(this)" />
+              <span class="slider">
+                <span class="slider-knob"></span>
+              </span>
+            </label>
+            <!-- Schedule container for Relay 4 -->
+            <div class="relay-schedules" id="schedules-r4"></div>
+          </div>
+        </section>
+
+        <!-- Timer Panel Section -->
+        <section class="control-panel">
+          <div class="panel-section timer-panel">
+            <div class="panel-header">
+              <i class="fas fa-hourglass-half"></i>
+              <h2>Timer Control</h2>
+            </div>
+            <div class="panel-content">
+              <div class="timer-relay-select">
+                <label
+                  ><input
+                    type="checkbox"
+                    class="timer-relay"
+                    value="r1"
+                    checked
+                  />
+                  Light</label
+                >
+                <label
+                  ><input type="checkbox" class="timer-relay" value="r2" />
+                  Strip Light</label
+                >
+                <label
+                  ><input type="checkbox" class="timer-relay" value="r3" /> Door
+                  Lock</label
+                >
+                <label
+                  ><input type="checkbox" class="timer-relay" value="r4" />
+                  Fan</label
+                >
+              </div>
+              <!-- Time input for hours, minutes, seconds -->
+              <div class="timer-controls">
+                <div class="time-input-group">
+                  <input type="number" id="hours" value="0" min="0" />
+                  <label>Hours</label>
+                </div>
+                <div class="time-input-group">
+                  <input
+                    type="number"
+                    id="minutes"
+                    value="5"
+                    min="0"
+                    max="59"
+                  />
+                  <label>Minutes</label>
+                </div>
+                <div class="time-input-group">
+                  <input
+                    type="number"
+                    id="seconds"
+                    value="0"
+                    min="0"
+                    max="59"
+                  />
+                  <label>Seconds</label>
+                </div>
+              </div>
+              <!-- Select action ON/OFF and button to set timer -->
+              <div class="timer-actions">
+                <select id="timerAction">
+                  <option value="OFF">Turn OFF after</option>
+                  <option value="ON">Turn ON after</option>
+                </select>
+                <button class="primary-btn" onclick="setTimer()">
+                  <i class="fas fa-play-circle"></i> Set Timer
+                </button>
+              </div>
+              <!-- Display area for active timers -->
+              <div id="activeTimers" class="active-timers"></div>
+            </div>
+          </div>
+
+          <!-- Scheduling Section -->
+          <div class="panel-section schedule-panel">
+            <div class="panel-header">
+              <i class="fas fa-calendar-alt"></i>
+              <h2>Scheduling</h2>
+            </div>
+            <!-- dropdown form to select relay, time, and action -->
+            <div class="panel-content">
+              <div class="schedule-controls">
+                <div class="form-group">
+                  <label>Relay</label>
+                  <select id="scheduleRelay">
+                    <option value="r1">Light</option>
+                    <option value="r2">Strip Light</option>
+                    <option value="r3">Door</option>
+                    <option value="r4">Fan</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Time</label>
+                  <input type="time" id="scheduleTime" />
+                </div>
+                <div class="form-group">
+                  <label>Action</label>
+                  <select id="scheduleAction">
+                    <option value="ON">Turn ON</option>
+                    <option value="OFF">Turn OFF</option>
+                  </select>
+                </div>
+                <!-- Button to add the schedule -->
+                <button class="primary-btn full-width" onclick="addSchedule()">
+                  <i class="fas fa-plus-circle"></i> Add Schedule
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Voice Control Section -->
+          <div class="panel-section voice-panel">
+            <div class="panel-header">
+              <i class="fas fa-microphone"></i>
+              <h2>Voice Control</h2>
+            </div>
+            <!-- Button to start listening -->
+            <div class="panel-content">
+              <div class="voice-control-container">
+                <button
+                  id="voiceControlBtn"
+                  class="voice-btn"
+                  onclick="startVoiceControl()"
+                >
+                  Start Listening
+                </button>
+                <div id="voiceStatus" class="voice-status">
+                  Press the button and say commands like "Lights On" or "Turn on
+                  everything"
+                </div>
+              </div>
+
+              <div class="voice-commands">
+                <h3>Available Commands:</h3>
+                <ul>
+                  <li>"Lights on" / "Lights off"</li>
+                  <li>"Strip light on" / "Strip light off"</li>
+                  <li>"Lock door" / "Unlock door"</li>
+                  <li>"Turn on fan" / "Turn off fan"</li>
+                  <li>"Turn on everything" / "Turn off everything"</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
